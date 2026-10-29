@@ -107,6 +107,7 @@ class Params:
     snap_legs: bool = True
     clearance: float = DIVIDER_CLEARANCE
     stackable: bool = False
+    grid_channels: bool = False   # one channel per grid unit, walls on the grid lines
 
 
 def has_lip(p):
@@ -133,14 +134,20 @@ def lip_levels(wall):
     return levels
 
 
-def lip_opening(p, inset):
-    """(x0, y0, x1, y1) of the opening inside the lip at a given inset.
+def lip_openings(p, inset):
+    """[(x0, y0, x1, y1), ...] openings inside the lip at a given inset.
 
     Open trays only get a lip along the long sides; closed bins all round.
+    With one channel per grid unit every grid column gets its own opening,
+    so the walls between the columns become ridges with the lip profile on
+    both sides: loose bins stand on those ridges.
     """
     if p.part == PART_BIN:
-        return (inset, inset, p.width - inset, p.length - inset)
-    return (inset, -1.0, p.width - inset, p.length + 1.0)
+        y0, y1 = inset, p.length - inset
+    else:
+        y0, y1 = -1.0, p.length + 1.0
+    columns = grid_columns(p) if p.grid_channels else [(0.0, p.width)]
+    return [(x0 + inset, y0, x1 - inset, y1) for x0, x1 in columns]
 
 
 def units_to_mm(units):
@@ -165,8 +172,37 @@ def inner_wall(wall):
     return wall + GROOVE_DEPTH
 
 
+def grid_columns(p):
+    """[(x0, x1), ...] faces of the grid columns across the width.
+
+    Columns follow the feet: every grid line sits half the 0.5 mm gap away
+    from the faces on either side. A leftover strip too narrow for a foot is
+    added to the last column.
+    """
+    full, half = grid_cells(p.width)
+    sizes = [GRID] * full + ([GRID / 2] if half else [])
+    if not sizes:
+        return [(0.0, p.width)]
+    columns = []
+    line = -GRID_GAP / 2
+    for size in sizes:
+        columns.append((line + GRID_GAP / 2, line + size - GRID_GAP / 2))
+        line += size
+    columns[0] = (0.0, columns[0][1])
+    columns[-1] = (columns[-1][0], p.width)
+    return columns
+
+
+def channel_list(p):
+    """[(centre x, width), ...] of every channel in the tray."""
+    if p.grid_channels:
+        return [((x0 + x1) / 2, x1 - x0 - 2 * p.wall) for x0, x1 in grid_columns(p)]
+    cw, centres = channel_layout(p)
+    return [(cx, cw) for cx in centres]
+
+
 def channel_layout(p):
-    """Return (channel_width, [channel centre x]) for the tray."""
+    """Return (channel_width, [channel centre x]) for evenly spread channels."""
     n = max(1, p.channels)
     t_in = inner_wall(p.wall)
     cw = (p.width - 2 * p.wall - (n - 1) * t_in) / n
@@ -303,14 +339,17 @@ def slot_positions(p):
     return out
 
 
+def divider_channel_width(p):
+    """Width of the channel a divider is made for (the first one)."""
+    return channel_list(p)[0][1]
+
+
 def divider_half_width(p):
-    cw, _ = channel_layout(p)
-    return cw / 2 + GROOVE_DEPTH - p.clearance
+    return divider_channel_width(p) / 2 + GROOVE_DEPTH - p.clearance
 
 
 def label_half_width(p):
-    cw, _ = channel_layout(p)
-    return cw / 2 - LABEL_CLEARANCE
+    return divider_channel_width(p) / 2 - LABEL_CLEARANCE
 
 
 def snap_leg_outlines(floor):
@@ -339,7 +378,9 @@ def describe(p):
     h = ("%g" % h_units) if abs(h_units - round(h_units)) < 1e-6 else "%gmm" % p.height
     name = {PART_TRAY: "tray", PART_BIN: "bak", PART_DIVIDER: "divider"}.get(p.part, p.part)
     s = "WaveGrid %s %sx%sx%s" % (name, u(p.width), u(p.length), h)
-    if p.channels > 1:
+    if p.grid_channels:
+        s += " (goot per eenheid)"
+    elif p.channels > 1:
         s += " (%d goten)" % p.channels
     if has_lip(p):
         s += " stapelbaar"
@@ -359,7 +400,7 @@ def validate(p):
         errors.append("De wand moet minstens %.1f mm dik zijn." % (GROOVE_DEPTH + 0.6))
     if p.channels < 1:
         errors.append("Er moet minstens 1 goot zijn.")
-    cw, _ = channel_layout(p)
+    cw = min(w for _, w in channel_list(p))
     if cw < 8:
         errors.append("De goten worden te smal (%.1f mm). Kies minder goten of een bredere tray." % cw)
     if p.radius < 0:

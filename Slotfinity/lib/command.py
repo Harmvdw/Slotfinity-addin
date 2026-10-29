@@ -80,6 +80,7 @@ def _create_inputs(inputs):
     inputs.addValueInput("height_mm", "Hoogte", "mm", _mm("28 mm"))
 
     inputs.addIntegerSpinnerCommandInput("channels", "Aantal goten naast elkaar", 1, 8, 1, 1)
+    inputs.addBoolValueInput("grid_channels", "Eén goot per rastereenheid", True, "", False)
     inputs.addValueInput("radius", "Gootradius", "mm", _mm("14 mm"))
     _add_dropdown(inputs, "bottom", "Onderkant", BOTTOMS)
     inputs.addBoolValueInput("slots", "Dividersleuven", True, "", True)
@@ -112,8 +113,9 @@ def _update_visibility(inputs):
     inputs.itemById("length_u").isVisible = by_units and not is_divider
     inputs.itemById("length_mm").isVisible = not by_units and not is_divider
 
-    for cmd_id in ("bottom", "slots", "snap_holes", "stackable"):
+    for cmd_id in ("bottom", "slots", "snap_holes", "stackable", "grid_channels"):
         inputs.itemById(cmd_id).isVisible = not is_divider
+    inputs.itemById("channels").isEnabled = is_divider or not inputs.itemById("grid_channels").value
     inputs.itemById("snap_holes").isEnabled = inputs.itemById("slots").value
     inputs.itemById("end_wall").isVisible = part == g.PART_BIN
     inputs.itemById("divider_group").isVisible = is_divider
@@ -121,9 +123,9 @@ def _update_visibility(inputs):
     info = inputs.itemById("info")
     try:
         p = _read_params(inputs)
-        cw, _ = g.channel_layout(p)
-        text = "Buitenmaat: %.1f × %.1f × %.1f mm<br>Breedte per goot: %.1f mm" % (
-            p.width, p.length, g.total_height(p), cw)
+        widths = sorted({round(w, 1) for _, w in g.channel_list(p)})
+        text = "Buitenmaat: %.1f × %.1f × %.1f mm<br>Breedte per goot: %s mm" % (
+            p.width, p.length, g.total_height(p), " / ".join("%.1f" % w for w in widths))
         if not is_divider:
             text += "<br>Dividersleuven: %d" % len(g.slot_positions(p))
         errors = g.validate(p)
@@ -158,6 +160,7 @@ def _read_params(inputs):
     p.snap_holes = value("snap_holes") and p.slots
     p.end_wall = mm("end_wall")
     p.stackable = value("stackable")
+    p.grid_channels = value("grid_channels") and p.part != g.PART_DIVIDER
     p.label = _dropdown_value(inputs.itemById("label"), LABELS)
     p.snap_legs = value("snap_legs")
     p.clearance = mm("clearance")

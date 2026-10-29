@@ -222,24 +222,28 @@ def _build_feet(b, p):
 
 
 def _build_lip(b, p):
-    """Stacking lip on top of the outer walls, as one body."""
+    """Stacking lip on the outer walls (and grid ridges), as one body."""
     top = p.height
     overlap = 0.3  # reaches into the wall tops so the lip joins the tray
     lip = b.box(0, 0, top - overlap, p.width, p.length, top + g.LIP_HEIGHT)[0]
-
-    def opening(z, inset):
-        return b.sketch_xy(top + z, [g.rounded_rect(*g.lip_opening(p, inset), 0)])
-
     levels = g.lip_levels(p.wall)
-    tools = b.extrude(opening(-overlap - 0.5, levels[0][1]), overlap + 0.5)
-    sketches = [opening(z, inset) for z, inset in levels]
-    for (z_a, inset_a), (z_b, inset_b), sk_a, sk_b in zip(
-            levels, levels[1:], sketches, sketches[1:]):
-        if abs(inset_a - inset_b) < 1e-6:
-            tools += b.extrude(sk_a, z_b - z_a)
-        else:
-            tools += b.loft(sk_a.profiles.item(0), sk_b.profiles.item(0))
-    tools += b.extrude(sketches[-1], 0.5)
+
+    tools = []
+    # One opening per grid column; a loft needs a single profile per section.
+    for index in range(len(g.lip_openings(p, 0))):
+        def opening(z, inset):
+            rect = g.lip_openings(p, inset)[index]
+            return b.sketch_xy(top + z, [g.rounded_rect(*rect, 0)])
+
+        tools += b.extrude(opening(-overlap - 0.5, levels[0][1]), overlap + 0.5)
+        sketches = [opening(z, inset) for z, inset in levels]
+        for (z_a, inset_a), (z_b, inset_b), sk_a, sk_b in zip(
+                levels, levels[1:], sketches, sketches[1:]):
+            if abs(inset_a - inset_b) < 1e-6:
+                tools += b.extrude(sk_a, z_b - z_a)
+            else:
+                tools += b.loft(sk_a.profiles.item(0), sk_b.profiles.item(0))
+        tools += b.extrude(sketches[-1], 0.5)
     return b.combine(lip, tools, CUT)
 
 
@@ -251,12 +255,12 @@ def build_tray(comp, p):
     body = b.box(0, 0, z0, p.width, p.length, p.height)[0]
     body = b.combine(body, feet, JOIN)
 
-    cw, centres = g.channel_layout(p)
-    radius = g.effective_radius(p, cw / 2)
+    channels = [(cx, cw, g.effective_radius(p, cw / 2)) for cx, cw in g.channel_list(p)]
 
     # Channel cavities, open at both ends for a tray.
     cavity = b.sketch_xz(p.length / 2, [
-        g.channel_outline(cx, cw / 2, radius, g.FLOOR_Z, p.height + 1) for cx in centres])
+        g.channel_outline(cx, cw / 2, radius, g.FLOOR_Z, p.height + 1)
+        for cx, cw, radius in channels])
     if p.part == g.PART_BIN:
         cut_length = p.length - 2 * p.end_wall
     else:
@@ -273,13 +277,13 @@ def build_tray(comp, p):
             # Through the stacking lip too, so dividers slide in from the top.
             g.channel_outline(cx, cw / 2 + g.GROOVE_DEPTH, radius, g.FLOOR_Z,
                               g.total_height(p) + 1)
-            for cx in centres])
+            for cx, cw, radius in channels])
         grooves = b.extrude(groove, g.GROOVE_WIDTH, symmetric=True)
         tools = b.pattern(grooves, 1, 0, len(slots), p.slot_pitch)
 
         if p.snap_holes:
             holes = []
-            for cx in centres:
+            for cx, _, _ in channels:
                 holes += b.box(cx - g.SNAP_HOLE_W / 2, first - g.SNAP_HOLE_D / 2, -0.5,
                                cx + g.SNAP_HOLE_W / 2, first + g.SNAP_HOLE_D / 2, g.SNAP_LIP_BOTTOM)
                 holes += b.box(cx - g.SNAP_LIP_W / 2, first - g.SNAP_LIP_D / 2, g.SNAP_LIP_BOTTOM - 0.01,
@@ -299,8 +303,7 @@ def build_tray(comp, p):
 def build_divider(comp, p):
     """Divider for one channel, centred on x = 0 and y = 0."""
     b = Builder(comp)
-    cw, _ = g.channel_layout(p)
-    radius = g.effective_radius(p, cw / 2)
+    radius = g.effective_radius(p, g.divider_channel_width(p) / 2)
     half = g.divider_half_width(p)
 
     plate_sketch = b.sketch_xz(0, [g.channel_outline(0, half, radius, g.FLOOR_Z, p.height)])

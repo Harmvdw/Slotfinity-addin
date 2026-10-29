@@ -40,6 +40,7 @@ def nearest_end(monkeypatch):
     g.Params(width=g.units_to_mm(1.5), length=g.units_to_mm(0.5)),
     g.Params(stackable=True),
     g.Params(part=g.PART_BIN, stackable=True, channels=2, width=g.units_to_mm(2)),
+    g.Params(width=g.units_to_mm(3.5), stackable=True, grid_channels=True),
 ])
 def test_build_tray(params):
     design, comp = make_design()
@@ -47,7 +48,9 @@ def test_build_tray(params):
     feats = comp.features
     assert feats.extrudeFeatures.add.called
     assert feats.combineFeatures.add.called
-    lip_lofts = len(g.lip_levels(params.wall)) - 2 if g.has_lip(params) else 0
+    lip_lofts = 0
+    if g.has_lip(params):
+        lip_lofts = (len(g.lip_levels(params.wall)) - 2) * len(g.lip_openings(params, 0))
     if g.has_feet(params) or lip_lofts:
         assert feats.loftFeatures.add.call_count == 2 * len(g.foot_groups(params)) + lip_lofts
     else:
@@ -82,7 +85,7 @@ def fake_inputs(**overrides):
         "channels": FakeInput(1), "radius": FakeInput(1.4),
         "bottom": FakeInput(selected=command.BOTTOMS[0][0]),
         "slots": FakeInput(True), "snap_holes": FakeInput(True), "end_wall": FakeInput(0.24),
-        "stackable": FakeInput(False),
+        "stackable": FakeInput(False), "grid_channels": FakeInput(False),
         "divider_group": FakeInput(),
         "label": FakeInput(selected=command.LABELS[0][0]),
         "snap_legs": FakeInput(True), "clearance": FakeInput(0.02),

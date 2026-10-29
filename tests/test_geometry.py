@@ -190,10 +190,41 @@ def test_stacked_foot_rests_on_lip_without_interference():
 
 
 def test_lip_only_on_sides_of_open_tray():
-    x0, y0, x1, y1 = g.lip_opening(tray(stackable=True), 1.9)
+    [(x0, y0, x1, y1)] = g.lip_openings(tray(stackable=True), 1.9)
     assert (x0, x1) == pytest.approx((1.9, 41.5 - 1.9))
     assert y0 < 0 and y1 > 125.5
-    assert g.lip_opening(tray(part=g.PART_BIN, stackable=True), 1.9)[1] == pytest.approx(1.9)
+    [bin_opening] = g.lip_openings(tray(part=g.PART_BIN, stackable=True), 1.9)
+    assert bin_opening[1] == pytest.approx(1.9)
+
+
+def test_grid_columns_follow_the_feet():
+    p = tray(width=g.units_to_mm(2.5), grid_channels=True)
+    columns = g.grid_columns(p)
+    assert [c for col in columns for c in col] == pytest.approx([0, 41.5, 42, 83.5, 84, 104.5])
+    # Every foot lines up with a column.
+    for f in g.foot_groups(p):
+        for i in range(f.count_x):
+            x0 = f.centre_x + i * g.GRID - (f.cell_x - g.GRID_GAP) / 2
+            assert any(abs(x0 - c[0]) < 1e-6 for c in columns)
+
+
+def test_grid_channels_match_a_1u_tray():
+    p = tray(width=g.units_to_mm(3), grid_channels=True)
+    widths = [w for _, w in g.channel_list(p)]
+    assert widths == pytest.approx([36.7] * 3)
+    # Walls between channels: 2 x wall + gap, i.e. the base of a lip ridge.
+    (c0, w0), (c1, w1) = g.channel_list(p)[:2]
+    assert (c1 - w1 / 2) - (c0 + w0 / 2) == pytest.approx(2 * g.WALL + g.GRID_GAP)
+
+
+def test_grid_lip_has_a_ridge_per_grid_line():
+    p = tray(width=g.units_to_mm(3), stackable=True, grid_channels=True)
+    top = g.lip_openings(p, g.LIP_TOP_INSET)
+    assert len(top) == 3
+    ridge = top[1][0] - top[0][2]
+    assert ridge == pytest.approx(g.GRID_GAP + 2 * g.LIP_TOP_INSET)
+    base = g.lip_openings(p, g.lip_levels(p.wall)[0][1])
+    assert base[1][0] - base[0][2] == pytest.approx(2 * g.WALL + g.GRID_GAP)
 
 
 def test_divider_ignores_stackable():
