@@ -84,6 +84,7 @@ def _create_inputs(inputs):
     _add_dropdown(inputs, "bottom", "Onderkant", BOTTOMS)
     inputs.addBoolValueInput("slots", "Dividersleuven", True, "", True)
     inputs.addBoolValueInput("snap_holes", "Klikgaten in de bodem", True, "", True)
+    inputs.addBoolValueInput("stackable", "Stapelrand", True, "", False)
     inputs.addValueInput("end_wall", "Dikte eindwanden", "mm", _mm("2.4 mm"))
 
     divider = inputs.addGroupCommandInput("divider_group", "Divider")
@@ -111,7 +112,7 @@ def _update_visibility(inputs):
     inputs.itemById("length_u").isVisible = by_units and not is_divider
     inputs.itemById("length_mm").isVisible = not by_units and not is_divider
 
-    for cmd_id in ("bottom", "slots", "snap_holes"):
+    for cmd_id in ("bottom", "slots", "snap_holes", "stackable"):
         inputs.itemById(cmd_id).isVisible = not is_divider
     inputs.itemById("snap_holes").isEnabled = inputs.itemById("slots").value
     inputs.itemById("end_wall").isVisible = part == g.PART_BIN
@@ -122,7 +123,7 @@ def _update_visibility(inputs):
         p = _read_params(inputs)
         cw, _ = g.channel_layout(p)
         text = "Buitenmaat: %.1f × %.1f × %.1f mm<br>Breedte per goot: %.1f mm" % (
-            p.width, p.length, p.height, cw)
+            p.width, p.length, g.total_height(p), cw)
         if not is_divider:
             text += "<br>Dividersleuven: %d" % len(g.slot_positions(p))
         errors = g.validate(p)
@@ -156,6 +157,7 @@ def _read_params(inputs):
     p.slots = value("slots")
     p.snap_holes = value("snap_holes") and p.slots
     p.end_wall = mm("end_wall")
+    p.stackable = value("stackable")
     p.label = _dropdown_value(inputs.itemById("label"), LABELS)
     p.snap_legs = value("snap_legs")
     p.clearance = mm("clearance")

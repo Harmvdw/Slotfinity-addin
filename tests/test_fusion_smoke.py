@@ -38,6 +38,8 @@ def nearest_end(monkeypatch):
     g.Params(bottom=g.BOTTOM_FLAT, snap_holes=False),
     g.Params(slots=False),
     g.Params(width=g.units_to_mm(1.5), length=g.units_to_mm(0.5)),
+    g.Params(stackable=True),
+    g.Params(part=g.PART_BIN, stackable=True, channels=2, width=g.units_to_mm(2)),
 ])
 def test_build_tray(params):
     design, comp = make_design()
@@ -45,8 +47,9 @@ def test_build_tray(params):
     feats = comp.features
     assert feats.extrudeFeatures.add.called
     assert feats.combineFeatures.add.called
-    if g.has_feet(params):
-        assert feats.loftFeatures.add.call_count == 2 * len(g.foot_groups(params))
+    lip_lofts = len(g.lip_levels(params.wall)) - 2 if g.has_lip(params) else 0
+    if g.has_feet(params) or lip_lofts:
+        assert feats.loftFeatures.add.call_count == 2 * len(g.foot_groups(params)) + lip_lofts
     else:
         assert not feats.loftFeatures.add.called
 
@@ -79,6 +82,7 @@ def fake_inputs(**overrides):
         "channels": FakeInput(1), "radius": FakeInput(1.4),
         "bottom": FakeInput(selected=command.BOTTOMS[0][0]),
         "slots": FakeInput(True), "snap_holes": FakeInput(True), "end_wall": FakeInput(0.24),
+        "stackable": FakeInput(False),
         "divider_group": FakeInput(),
         "label": FakeInput(selected=command.LABELS[0][0]),
         "snap_legs": FakeInput(True), "clearance": FakeInput(0.02),
@@ -98,6 +102,7 @@ def test_read_params_units():
     assert p.radius == pytest.approx(14)
     assert p.wall == pytest.approx(2.4)
     assert p.part == g.PART_TRAY and p.label == g.LABEL_NONE
+    assert p.stackable is False
 
 
 def test_read_params_mm_and_divider():
