@@ -221,6 +221,28 @@ def _build_feet(b, p):
     return feet
 
 
+def _build_lip(b, p):
+    """Stacking lip on top of the outer walls, as one body."""
+    top = p.height
+    overlap = 0.3  # reaches into the wall tops so the lip joins the tray
+    lip = b.box(0, 0, top - overlap, p.width, p.length, top + g.LIP_HEIGHT)[0]
+
+    def opening(z, inset):
+        return b.sketch_xy(top + z, [g.rounded_rect(*g.lip_opening(p, inset), 0)])
+
+    levels = g.lip_levels(p.wall)
+    tools = b.extrude(opening(-overlap - 0.5, levels[0][1]), overlap + 0.5)
+    sketches = [opening(z, inset) for z, inset in levels]
+    for (z_a, inset_a), (z_b, inset_b), sk_a, sk_b in zip(
+            levels, levels[1:], sketches, sketches[1:]):
+        if abs(inset_a - inset_b) < 1e-6:
+            tools += b.extrude(sk_a, z_b - z_a)
+        else:
+            tools += b.loft(sk_a.profiles.item(0), sk_b.profiles.item(0))
+    tools += b.extrude(sketches[-1], 0.5)
+    return b.combine(lip, tools, CUT)
+
+
 def build_tray(comp, p):
     """Open tray or closed bin, depending on p.part."""
     b = Builder(comp)
@@ -241,11 +263,16 @@ def build_tray(comp, p):
         cut_length = p.length + 2
     body = b.combine(body, b.extrude(cavity, cut_length, symmetric=True), CUT)
 
+    if g.has_lip(p):
+        body = b.combine(body, [_build_lip(b, p)], JOIN)
+
     slots = g.slot_positions(p)
     if slots:
         first = slots[0]
         groove = b.sketch_xz(first, [
-            g.channel_outline(cx, cw / 2 + g.GROOVE_DEPTH, radius, g.FLOOR_Z, p.height + 1)
+            # Through the stacking lip too, so dividers slide in from the top.
+            g.channel_outline(cx, cw / 2 + g.GROOVE_DEPTH, radius, g.FLOOR_Z,
+                              g.total_height(p) + 1)
             for cx in centres])
         grooves = b.extrude(groove, g.GROOVE_WIDTH, symmetric=True)
         tools = b.pattern(grooves, 1, 0, len(slots), p.slot_pitch)

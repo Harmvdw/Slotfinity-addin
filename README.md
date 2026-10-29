@@ -28,6 +28,7 @@ De knop **Slotfinity tray** staat daarna in de Design-werkruimte onder
 | Onderkant | *Gridfinity-voetjes* (past op een Gridfinity-baseplate) of *Vlak*. |
 | Dividersleuven | Sleuven in de wanden om de 21 mm (½ eenheid). |
 | Klikgaten in de bodem | Gat onder elke sleuf waar de klikpootjes van een divider in vallen. |
+| Stapelrand | Gridfinity-stapelrand van 4,4 mm op de buitenwanden, zodat je een tray op een andere kunt zetten. Bij een open tray alleen langs de lange zijden, bij een bak rondom. De rand komt bovenop de gekozen hoogte. De dividersleuven lopen door de rand heen. |
 | Dikte eindwanden | Alleen voor een gesloten bak. |
 | Divider → Label | *Geen*, *Plat label* (14 mm diep) of *Schuin label (45°)*. |
 | Divider → Klikpootjes | Pootjes met weerhaakjes die in de klikgaten klikken. |
@@ -51,6 +52,8 @@ De maten zijn opgemeten uit de WaveGrid *Classic Trays starter pack*:
 - Wanden 2,4 mm, bodem bovenkant op 5,8 mm, gootradius 14 mm.
 - Sleuven 2,2 mm breed, 1,4 mm diep, om de 21 mm (eerste op 10,25 mm van de rand).
 - Klikgat 6 × 3,3 mm met een lip van 5 × 2,3 mm.
+- Stapelrand 4,4 mm hoog: 45° van 2,4 naar 1,9 mm, recht tot 2,9 mm, dan 45° naar een
+  vlakje van 0,4 mm. Een gestapelde tray rust op die bovenste schuine kant.
 - Divider 2 mm dik, 0,2 mm speling per kant, klikpootjes 4,6 mm lang.
 
 Het nagebouwde model wijkt minder dan 0,1 % in volume af van het origineel.

@@ -31,6 +31,16 @@ WALL = 2.4             # outer wall thickness
 SCOOP_RADIUS = 14.0    # default radius between wall and floor
 END_WALL = 2.4         # end wall thickness for closed bins
 
+# --- Stacking lip (Gridfinity style) ----------------------------------------
+# Profile of the inner face, as (height above the tray top, inset from the
+# outer edge). The upper chamfer matches the top chamfer of the feet, so a
+# tray stacked on top rests on it and is held sideways.
+LIP_HEIGHT = 4.4
+LIP_BOTTOM_INSET = 2.6   # Gridfinity value, limited to the wall thickness
+LIP_MID_INSET = 1.9
+LIP_MID_TOP = 2.9
+LIP_TOP_INSET = 0.4      # small flat on top instead of a knife edge
+
 # --- Divider slots -----------------------------------------------------------
 SLOT_PITCH = 21.0      # distance between divider slots (half a grid unit)
 SLOT_OFFSET = 10.5     # first slot, measured from the start of the grid
@@ -96,6 +106,41 @@ class Params:
     label: str = LABEL_NONE
     snap_legs: bool = True
     clearance: float = DIVIDER_CLEARANCE
+    stackable: bool = False
+
+
+def has_lip(p):
+    return p.stackable and p.part != PART_DIVIDER
+
+
+def total_height(p):
+    """Height including the stacking lip."""
+    return p.height + (LIP_HEIGHT if has_lip(p) else 0.0)
+
+
+def lip_levels(wall):
+    """Inner face of the stacking lip: [(z above tray top, inset), ...].
+
+    Consecutive levels with equal insets are straight, others are 45 degree
+    chamfers. The bottom inset never exceeds the wall, so there is no overhang.
+    """
+    bottom = max(min(LIP_BOTTOM_INSET, wall), LIP_MID_INSET)
+    levels = [(0.0, bottom)]
+    if bottom - LIP_MID_INSET > 1e-6:
+        levels.append((bottom - LIP_MID_INSET, LIP_MID_INSET))
+    levels.append((LIP_MID_TOP, LIP_MID_INSET))
+    levels.append((LIP_HEIGHT, LIP_TOP_INSET))
+    return levels
+
+
+def lip_opening(p, inset):
+    """(x0, y0, x1, y1) of the opening inside the lip at a given inset.
+
+    Open trays only get a lip along the long sides; closed bins all round.
+    """
+    if p.part == PART_BIN:
+        return (inset, inset, p.width - inset, p.length - inset)
+    return (inset, -1.0, p.width - inset, p.length + 1.0)
 
 
 def units_to_mm(units):
@@ -296,6 +341,8 @@ def describe(p):
     s = "WaveGrid %s %sx%sx%s" % (name, u(p.width), u(p.length), h)
     if p.channels > 1:
         s += " (%d goten)" % p.channels
+    if has_lip(p):
+        s += " stapelbaar"
     return s
 
 

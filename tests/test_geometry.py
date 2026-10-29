@@ -148,3 +148,54 @@ def test_validate_ok_and_errors():
     assert g.validate(tray(channels=8))  # channels too narrow
     assert g.validate(tray(height=7))
     assert g.validate(tray(part=g.PART_BIN, length=20, end_wall=8))
+
+
+def test_lip_levels_are_45_degree_and_match_feet():
+    levels = g.lip_levels(g.WALL)
+    assert levels[0] == pytest.approx((0, g.WALL))
+    assert levels[-1] == pytest.approx((g.LIP_HEIGHT, g.LIP_TOP_INSET))
+    for (z_a, i_a), (z_b, i_b) in zip(levels, levels[1:]):
+        assert z_b > z_a
+        assert i_a == pytest.approx(i_b) or (i_a - i_b) == pytest.approx(z_b - z_a)
+
+
+def test_stacked_foot_rests_on_lip_without_interference():
+    # Put a 1U foot on a 1U tray and find the lowest position where the
+    # foot never pokes through the lip.
+    p = tray(stackable=True)
+    foot = g.foot_levels(g.GRID)
+    lip = g.lip_levels(p.wall)
+
+    def interp(levels, z, key):
+        for (za, a), (zb, b) in zip(levels, levels[1:]):
+            if za - 1e-9 <= z <= zb + 1e-9:
+                return a + (b - a) * (z - za) / (zb - za) if zb > za else b
+        return None
+
+    foot_w = [(z, size) for z, size, _ in foot]
+    lip_w = [(z, p.width - 2 * inset) for z, inset in lip]
+
+    def fits(lift):
+        for i in range(201):
+            z = g.LIP_HEIGHT * i / 200
+            fw = interp(foot_w, z - lift, None)
+            if fw is not None and fw > interp(lip_w, z, None) + 1e-6:
+                return False
+        return True
+
+    lift = next(l / 100 for l in range(-100, 100) if fits(l / 100))
+    # It rests just above the tray top and touches the chamfer.
+    assert 0 <= lift < 0.2
+    assert g.total_height(p) == pytest.approx(p.height + g.LIP_HEIGHT)
+
+
+def test_lip_only_on_sides_of_open_tray():
+    x0, y0, x1, y1 = g.lip_opening(tray(stackable=True), 1.9)
+    assert (x0, x1) == pytest.approx((1.9, 41.5 - 1.9))
+    assert y0 < 0 and y1 > 125.5
+    assert g.lip_opening(tray(part=g.PART_BIN, stackable=True), 1.9)[1] == pytest.approx(1.9)
+
+
+def test_divider_ignores_stackable():
+    assert not g.has_lip(tray(part=g.PART_DIVIDER, stackable=True))
+    assert g.describe(tray(stackable=True)).endswith("stapelbaar")
