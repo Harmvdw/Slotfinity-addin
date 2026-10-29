@@ -1,0 +1,13 @@
+{
+	"autodeskProduct": "Fusion",
+	"type": "addin",
+	"id": "df96d0d0-ad2c-4264-9692-871c0cd92d8f",
+	"author": "Harm van de Wetering",
+	"description": {
+		"": "Maakt WaveGrid-compatibele trays, bakken en dividers op het Gridfinity-raster."
+	},
+	"version": "1.0.0",
+	"runOnStartup": true,
+	"supportedOS": "windows|mac",
+	"editEnabled": true
+}
