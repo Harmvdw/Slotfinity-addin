@@ -31,8 +31,8 @@ De knop **Slotfinity tray** staat daarna in de Design-werkruimte onder
 | Stapelrand | Gridfinity-stapelrand van 4,4 mm op de buitenwanden, zodat je een tray op een andere kunt zetten. Bij een open tray alleen langs de lange zijden, bij een bak rondom. De rand komt bovenop de gekozen hoogte. De dividersleuven lopen door de rand heen. |
 | Dikte eindwanden | Alleen voor een gesloten bak. |
 | Divider → Label | *Geen*, *Plat label* (14 mm diep) of *Schuin label (45°)*. Het schuine label is massief: onder het labelvlak loopt een schuine onderkant van 45° terug naar de divider, zodat hij zonder support rechtop te printen is. |
-| Divider → Labeltekst | Tekst in reliëf op het label, te lezen vanaf de kant waar het label naartoe wijst. Te lange tekst wordt automatisch kleiner gemaakt zodat hij past. |
-| Divider → Teksthoogte / Reliëfhoogte | Lettergrootte (standaard 5 mm) en hoe ver de letters uitsteken (standaard 0,6 mm). |
+| Divider → Labeltekst | Tekst op het label, te lezen vanaf de kant waar het label naartoe wijst. Op het platte label wordt hij erin gegraveerd, op het schuine label staat hij in reliëf. Te lange tekst wordt automatisch kleiner gemaakt zodat hij past. |
+| Divider → Teksthoogte / Tekstdiepte | Lettergrootte (standaard 5 mm) en hoe diep de letters erin gaan (plat label, max. 1,4 mm) of hoe ver ze uitsteken (schuin label); standaard 0,6 mm. |
 | Divider → Klikpootjes | Pootjes met weerhaakjes die in de klikgaten klikken. |
 | Divider → Speling per kant | Ruimte tussen divider en sleuf (standaard 0,2 mm). Zit hij te strak of te los, pas dit aan. |
 | Geavanceerd | Wanddikte (2,4 mm) en sleufafstand (21 mm). |

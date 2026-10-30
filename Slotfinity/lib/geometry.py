@@ -64,7 +64,8 @@ LABEL_THICKNESS = 2.0
 FLAT_LABEL_DEPTH = 14.0
 ANGLED_LABEL_DROP = 9.0   # vertical drop of the 45 degree label face
 LABEL_TEXT_MARGIN = 1.5   # free border around the text on a label
-TEXT_EMBED = 0.2          # text reaches this far into the label so it joins
+TEXT_EMBED = 0.2          # overlap past the label face so joins and cuts are clean
+MIN_LABEL_FLOOR = 0.6     # label material left under engraved text
 TEXT_WIDTH_FACTOR = 0.65  # rough character width as a fraction of the height
 
 # Snap leg (right-hand leg, x >= 0), as an (x, z) polygon relative to the
@@ -422,6 +423,11 @@ def label_text_frame(p):
     return None
 
 
+def text_engraved(p):
+    """Flat labels get engraved text, angled labels raised text."""
+    return p.label == LABEL_FLAT
+
+
 def label_text_height(p):
     """Font height, shrunk so the text fits on the label."""
     frame = label_text_frame(p)
@@ -479,6 +485,9 @@ def validate(p):
             errors.append("Kies een label om tekst op te zetten.")
         if not (0.2 <= p.emboss <= 3):
             errors.append("De reliëfhoogte moet tussen 0,2 en 3 mm liggen.")
+        elif text_engraved(p) and p.emboss > LABEL_THICKNESS - MIN_LABEL_FLOOR:
+            errors.append("Gegraveerde tekst mag hoogstens %.1f mm diep zijn."
+                          % (LABEL_THICKNESS - MIN_LABEL_FLOOR))
         if p.text_height < 1:
             errors.append("De teksthoogte moet minstens 1 mm zijn.")
     if not (0 <= p.clearance < 1):
