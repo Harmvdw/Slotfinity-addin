@@ -192,3 +192,25 @@ def test_taper_falls_back_to_straight_letters():
     straight = tapered_feature(1, 1, 0.8)
     comp.features.extrudeFeatures.add.side_effect = [RuntimeError("collapse"), RuntimeError("collapse"), straight]
     assert b._extrude_tapered("profile", 0.8, 30, grow=False) == [straight.bodies.item.return_value]
+
+
+class EmptyTimeline:
+    """Like Fusion's Timeline: falsy while it holds no items."""
+
+    def __init__(self):
+        self.markerPosition = 0
+        self.timelineGroups = mock.Mock()
+
+    def __len__(self):
+        return self.markerPosition
+
+
+def test_build_in_an_empty_parametric_design():
+    design, comp = make_design()
+    timeline = EmptyTimeline()
+    design.timeline = timeline
+    design.designType = fusion_build.adsk.fusion.DesignTypes.ParametricDesignType
+    comp.features.extrudeFeatures.add.side_effect = lambda *_: setattr(
+        timeline, "markerPosition", timeline.markerPosition + 1) or mock.DEFAULT
+    fusion_build.build(design, g.Params())
+    assert timeline.timelineGroups.add.called

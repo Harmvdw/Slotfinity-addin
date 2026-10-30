@@ -430,7 +430,8 @@ def build_divider(comp, p):
 def build(design, p):
     """Create a new component in the design and build the part into it."""
     timeline = design.timeline if design.designType == adsk.fusion.DesignTypes.ParametricDesignType else None
-    start = timeline.markerPosition if timeline else None
+    # An empty Fusion timeline is falsy, so compare against None explicitly.
+    start = timeline.markerPosition if timeline is not None else None
 
     root = design.rootComponent
     occurrence = root.occurrences.addNewComponent(adsk.core.Matrix3D.create())
@@ -442,7 +443,7 @@ def build(design, p):
     else:
         build_tray(comp, p)
 
-    if timeline:
+    if timeline is not None:
         end = timeline.markerPosition - 1
         if end > start:
             try:
