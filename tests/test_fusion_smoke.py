@@ -62,10 +62,15 @@ def test_build_tray(params):
 
 @pytest.mark.parametrize("label", [g.LABEL_NONE, g.LABEL_FLAT, g.LABEL_ANGLED])
 @pytest.mark.parametrize("legs", [True, False])
-def test_build_divider(label, legs):
+@pytest.mark.parametrize("text", ["", "M6"])
+def test_build_divider(label, legs, text):
     design, comp = make_design()
-    fusion_build.build(design, g.Params(part=g.PART_DIVIDER, label=label, snap_legs=legs))
+    fusion_build.build(design, g.Params(part=g.PART_DIVIDER, label=label, snap_legs=legs,
+                                        label_text=text))
     assert comp.features.extrudeFeatures.add.called
+    has_text = bool(text) and label != g.LABEL_NONE
+    assert comp.sketches.add.return_value.sketchTexts.add.called == has_text
+    assert comp.features.moveFeatures.add.called == has_text
 
 
 class FakeInput:
@@ -92,6 +97,7 @@ def fake_inputs(**overrides):
         "divider_group": FakeInput(),
         "label": FakeInput(selected=command.LABELS[0][0]),
         "snap_legs": FakeInput(True), "clearance": FakeInput(0.02),
+        "label_text": FakeInput("M8"), "text_height": FakeInput(0.5), "emboss": FakeInput(0.06),
         "wall": FakeInput(0.24), "slot_pitch": FakeInput(2.1),
         "info": FakeInput(),
     }
@@ -120,6 +126,8 @@ def test_read_params_mm_and_divider():
     p = command._read_params(inputs)
     assert (p.width, p.height) == pytest.approx((41.5, 28))
     assert p.part == g.PART_DIVIDER and p.label == g.LABEL_ANGLED
+    assert p.label_text == "M8"
+    assert (p.text_height, p.emboss) == pytest.approx((5, 0.6))
     assert p.snap_holes is False
 
 
