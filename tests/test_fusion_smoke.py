@@ -74,6 +74,11 @@ def test_build_divider(label, legs, text, engrave):
     assert comp.sketches.add.return_value.sketchTexts.add.called == has_text
     assert comp.features.moveFeatures.add.called == has_text
     if has_text:
+        # Plain straight extrusion, and a text box wider than the label.
+        ext_input = comp.features.extrudeFeatures.createInput.return_value
+        assert ext_input.setDistanceExtent.called
+        assert not ext_input.setOneSideExtent.called
+    if has_text:
         last_combine = comp.features.combineFeatures.createInput.return_value
         expected = fusion_build.CUT if engrave else fusion_build.JOIN
         assert last_combine.operation == expected
@@ -104,7 +109,7 @@ def fake_inputs(**overrides):
         "label": FakeInput(selected=command.LABELS[0][0]),
         "snap_legs": FakeInput(True), "clearance": FakeInput(0.02),
         "label_text": FakeInput("M8"), "engrave": FakeInput(False),
-        "text_taper": FakeInput(0.3490658503988659), "text_height": FakeInput(0.5), "emboss": FakeInput(0.06),
+"text_height": FakeInput(0.5), "emboss": FakeInput(0.06),
         "wall": FakeInput(0.24), "slot_pitch": FakeInput(2.1),
         "info": FakeInput(),
     }
@@ -136,7 +141,6 @@ def test_read_params_mm_and_divider():
     assert p.label_text == "M8"
     assert (p.text_height, p.emboss) == pytest.approx((5, 0.6))
     assert p.engrave is False
-    assert p.text_taper == pytest.approx(20)
     assert p.snap_holes is False
 
 
@@ -147,51 +151,6 @@ def test_update_visibility():
     assert not values["divider_group"].isVisible
     assert not values["width_mm"].isVisible
     assert "Dividersleuven: 6" in values["info"].formattedText
-
-
-class FakeFace:
-    def __init__(self, z, area):
-        self.pointOnFace = mock.Mock(z=z / 10.0)
-        self.area = area
-
-
-class FakeBody:
-    def __init__(self, faces):
-        self.faces = mock.Mock(count=len(faces))
-        self.faces.item.side_effect = faces.__getitem__
-
-
-def tapered_feature(start_area, end_area, length):
-    feature = mock.Mock()
-    body = FakeBody([FakeFace(0, start_area), FakeFace(length, end_area), FakeFace(length / 2, 9)])
-    feature.bodies = mock.Mock(count=1)
-    feature.bodies.item.return_value = body
-    return feature
-
-
-@pytest.mark.parametrize("grow, first_grows, attempts", [
-    (False, False, 1),   # raised text, Fusion's sign already shrinks
-    (False, True, 2),    # raised text, first try grew: deleted and flipped
-    (True, True, 1),     # engraving, first try grows
-])
-def test_taper_direction_is_checked(grow, first_grows, attempts):
-    _, comp = make_design()
-    b = fusion_build.Builder(comp)
-    length = 0.8
-    wide, narrow = (1, 2) if first_grows else (2, 1)
-    results = [tapered_feature(wide, narrow, length), tapered_feature(narrow, wide, length)]
-    comp.features.extrudeFeatures.add.side_effect = results
-    b._extrude_tapered("profile", length, 15, grow)
-    assert comp.features.extrudeFeatures.add.call_count == attempts
-    assert results[0].deleteMe.called == (attempts == 2)
-
-
-def test_taper_falls_back_to_straight_letters():
-    _, comp = make_design()
-    b = fusion_build.Builder(comp)
-    straight = tapered_feature(1, 1, 0.8)
-    comp.features.extrudeFeatures.add.side_effect = [RuntimeError("collapse"), RuntimeError("collapse"), straight]
-    assert b._extrude_tapered("profile", 0.8, 30, grow=False) == [straight.bodies.item.return_value]
 
 
 class EmptyTimeline:

@@ -115,7 +115,6 @@ class Params:
     text_height: float = 5.0
     emboss: float = 0.6
     engrave: bool = True          # text cut into the label, else raised on it
-    text_taper: float = 15.0      # degrees; sloped letter sides print cleaner
 
 
 def has_lip(p):
@@ -429,6 +428,11 @@ def text_engraved(p):
     return p.engrave
 
 
+def text_box(frame):
+    """(width, height) of the Fusion text box: roomy so text never wraps."""
+    return 4 * frame.width, 4 * frame.height
+
+
 def label_text_height(p):
     """Font height, shrunk so the text fits on the label."""
     frame = label_text_frame(p)
@@ -490,8 +494,6 @@ def validate(p):
               and p.emboss > LABEL_THICKNESS - MIN_LABEL_FLOOR):
             errors.append("Gegraveerde tekst mag hoogstens %.1f mm diep zijn."
                           % (LABEL_THICKNESS - MIN_LABEL_FLOOR))
-        if not (0 <= p.text_taper <= 45):
-            errors.append("De tapshoek moet tussen 0 en 45 graden liggen.")
         if p.text_height < 1:
             errors.append("De teksthoogte moet minstens 1 mm zijn.")
     if not (0 <= p.clearance < 1):
