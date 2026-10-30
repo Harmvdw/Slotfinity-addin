@@ -240,3 +240,43 @@ def test_grid_alignment_is_automatic():
     # Off the grid the lip stays on the outer walls only.
     assert len(g.lip_openings(tray(width=g.units_to_mm(2), channels=3, stackable=True), 1)) == 1
     assert len(g.lip_openings(tray(width=g.units_to_mm(2), channels=2, stackable=True), 1)) == 2
+
+
+def test_angled_label_is_solid_and_printable():
+    p = tray(part=g.PART_DIVIDER, label=g.LABEL_ANGLED)
+    start, segs = g.angled_label_outline(p.height)
+    pts = outline_points((start, segs))[:-1]
+    # Face and underside both at 45 degrees, meeting at the tip.
+    (y_a, z_a), (y_b, z_b), (y_tip, z_tip), (y_foot, z_foot) = pts[:4]
+    assert (y_tip - y_b) == pytest.approx(z_b - z_tip)
+    assert (y_tip - y_foot) == pytest.approx(z_tip - z_foot)
+    # The underside ends on the divider face, so nothing hangs loose.
+    assert y_foot == pytest.approx(g.DIVIDER_THICKNESS / 2)
+
+
+@pytest.mark.parametrize("label", [g.LABEL_FLAT, g.LABEL_ANGLED])
+def test_text_frame_is_right_handed_and_on_the_label(label):
+    p = tray(part=g.PART_DIVIDER, label=label, label_text="M6")
+    f = g.label_text_frame(p)
+    b, u, n = f.baseline, f.up, f.normal
+    cross = (b[1] * u[2] - b[2] * u[1], b[2] * u[0] - b[0] * u[2], b[0] * u[1] - b[1] * u[0])
+    assert cross == pytest.approx(n)
+    assert f.width < 2 * g.label_half_width(p)
+    assert 0 < f.height
+    if label == g.LABEL_ANGLED:
+        start, segs = g.angled_label_outline(p.height)
+        (_, _), (y_b, z_b), (y_tip, z_tip) = outline_points((start, segs))[:3]
+        assert f.centre[1:] == pytest.approx(((y_b + y_tip) / 2, (z_b + z_tip) / 2))
+    else:
+        assert f.centre[2] == pytest.approx(p.height)
+
+
+def test_text_height_shrinks_to_fit():
+    p = tray(part=g.PART_DIVIDER, label=g.LABEL_FLAT, label_text="M6", text_height=5)
+    assert g.label_text_height(p) == pytest.approx(5)
+    p.label_text = "Spiraalboren HSS-Co 1-10 mm"
+    assert g.label_text_height(p) < 5
+    assert g.label_text_height(p) * g.TEXT_WIDTH_FACTOR * len(p.label_text) <= g.label_text_frame(p).width + 1e-6
+    p.label = g.LABEL_NONE
+    assert g.label_text_height(p) == 0
+    assert g.validate(p)  # text without a label

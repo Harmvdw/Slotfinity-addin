@@ -89,6 +89,9 @@ def _create_inputs(inputs):
 
     divider = inputs.addGroupCommandInput("divider_group", "Divider")
     _add_dropdown(divider.children, "label", "Label", LABELS)
+    divider.children.addStringValueInput("label_text", "Labeltekst", "")
+    divider.children.addValueInput("text_height", "Teksthoogte", "mm", _mm("5 mm"))
+    divider.children.addValueInput("emboss", "Reliëfhoogte", "mm", _mm("0.6 mm"))
     divider.children.addBoolValueInput("snap_legs", "Klikpootjes", True, "", True)
     divider.children.addValueInput("clearance", "Speling per kant", "mm", _mm("0.2 mm"))
 
@@ -117,6 +120,9 @@ def _update_visibility(inputs):
     inputs.itemById("snap_holes").isEnabled = inputs.itemById("slots").value
     inputs.itemById("end_wall").isVisible = part == g.PART_BIN
     inputs.itemById("divider_group").isVisible = is_divider
+    has_label = _dropdown_value(inputs.itemById("label"), LABELS) != g.LABEL_NONE
+    for cmd_id in ("label_text", "text_height", "emboss"):
+        inputs.itemById(cmd_id).isVisible = has_label
 
     info = inputs.itemById("info")
     try:
@@ -126,6 +132,9 @@ def _update_visibility(inputs):
             p.width, p.length, g.total_height(p), " / ".join("%.1f" % w for w in widths))
         if not is_divider:
             text += "<br>Dividersleuven: %d" % len(g.slot_positions(p))
+        text_height = g.label_text_height(p)
+        if is_divider and text_height and text_height < p.text_height - 1e-6:
+            text += "<br>Tekst verkleind tot %.1f mm zodat hij op het label past." % text_height
         if g.has_lip(p) and p.channels > 1:
             if g.on_grid(p):
                 text += "<br>Stapelribben op elke tussenwand: losse bakjes passen erop."
@@ -166,6 +175,9 @@ def _read_params(inputs):
     p.stackable = value("stackable")
     p.label = _dropdown_value(inputs.itemById("label"), LABELS)
     p.snap_legs = value("snap_legs")
+    p.label_text = value("label_text")
+    p.text_height = mm("text_height")
+    p.emboss = mm("emboss")
     p.clearance = mm("clearance")
     p.wall = mm("wall")
     p.slot_pitch = mm("slot_pitch")

@@ -62,7 +62,10 @@ DIVIDER_CLEARANCE = 0.2   # per side, between divider and groove
 LABEL_CLEARANCE = 0.6     # per side, between label and tray wall
 LABEL_THICKNESS = 2.0
 FLAT_LABEL_DEPTH = 14.0
-ANGLED_LABEL_DROP = 9.0   # vertical drop of the 45 degree label
+ANGLED_LABEL_DROP = 9.0   # vertical drop of the 45 degree label face
+LABEL_TEXT_MARGIN = 1.5   # free border around the text on a label
+TEXT_EMBED = 0.2          # text reaches this far into the label so it joins
+TEXT_WIDTH_FACTOR = 0.65  # rough character width as a fraction of the height
 
 # Snap leg (right-hand leg, x >= 0), as an (x, z) polygon relative to the
 # floor. z = 0 is the floor, negative is below it. The top overlaps into the
@@ -107,6 +110,9 @@ class Params:
     snap_legs: bool = True
     clearance: float = DIVIDER_CLEARANCE
     stackable: bool = False
+    label_text: str = ""
+    text_height: float = 5.0
+    emboss: float = 0.6
 
 
 def has_lip(p):
@@ -369,11 +375,61 @@ def snap_leg_outlines(floor):
 
 
 def angled_label_outline(top):
-    """45 degree label as a (y, z) polygon, hanging off the divider top."""
+    """Solid 45 degree label as a (y, z) polygon.
+
+    The label face runs down at 45 degrees from the divider top; the space
+    under it is filled with a 45 degree underside back to the divider, so
+    nothing hangs loose and it prints upright without support.
+    """
     y0 = -DIVIDER_THICKNESS / 2
+    y1 = DIVIDER_THICKNESS / 2
     s = LABEL_THICKNESS * math.sqrt(2)
     d = ANGLED_LABEL_DROP
-    return polygon([(y0, top), (y0 + s, top), (y0 + s + d, top - d), (y0 + d, top - d)])
+    tip_y, tip_z = y0 + s + d, top - d
+    foot_z = tip_z - (tip_y - y1)
+    return polygon([(y0, top), (y0 + s, top), (tip_y, tip_z), (y1, foot_z), (y0, foot_z)])
+
+
+@dataclass
+class TextFrame:
+    """Where label text goes: a rectangle on the label face."""
+    centre: tuple      # (x, y, z) on the face
+    baseline: tuple    # unit vector along the text
+    up: tuple          # unit vector from the bottom to the top of the text
+    normal: tuple      # unit vector out of the face
+    width: float
+    height: float
+
+
+def label_text_frame(p):
+    """Text area on the label, readable from the side the label points to."""
+    half = label_half_width(p)
+    width = 2 * (half - LABEL_TEXT_MARGIN)
+    y0 = -DIVIDER_THICKNESS / 2
+    if p.label == LABEL_FLAT:
+        return TextFrame(
+            centre=(0.0, y0 + FLAT_LABEL_DEPTH / 2, p.height),
+            baseline=(-1.0, 0.0, 0.0), up=(0.0, -1.0, 0.0), normal=(0.0, 0.0, 1.0),
+            width=width, height=FLAT_LABEL_DEPTH - 2 * LABEL_TEXT_MARGIN)
+    if p.label == LABEL_ANGLED:
+        s = LABEL_THICKNESS * math.sqrt(2)
+        d = ANGLED_LABEL_DROP
+        r = math.sqrt(0.5)
+        return TextFrame(
+            centre=(0.0, y0 + s + d / 2, p.height - d / 2),
+            baseline=(-1.0, 0.0, 0.0), up=(0.0, -r, r), normal=(0.0, r, r),
+            width=width, height=d * math.sqrt(2) - 2 * LABEL_TEXT_MARGIN)
+    return None
+
+
+def label_text_height(p):
+    """Font height, shrunk so the text fits on the label."""
+    frame = label_text_frame(p)
+    text = p.label_text.strip()
+    if not frame or not text:
+        return 0.0
+    fit_width = frame.width / (TEXT_WIDTH_FACTOR * len(text))
+    return max(0.0, min(p.text_height, frame.height, fit_width))
 
 
 def describe(p):
@@ -418,6 +474,13 @@ def validate(p):
         errors.append("De sleufafstand is te klein.")
     if p.part == PART_DIVIDER and p.snap_legs and cw / 2 < SNAP_HOLE_W / 2 + 1:
         errors.append("De goot is te smal voor klikpootjes.")
+    if p.part == PART_DIVIDER and p.label_text.strip():
+        if p.label == LABEL_NONE:
+            errors.append("Kies een label om tekst op te zetten.")
+        if not (0.2 <= p.emboss <= 3):
+            errors.append("De reliëfhoogte moet tussen 0,2 en 3 mm liggen.")
+        if p.text_height < 1:
+            errors.append("De teksthoogte moet minstens 1 mm zijn.")
     if not (0 <= p.clearance < 1):
         errors.append("De speling moet tussen 0 en 1 mm liggen.")
     return errors

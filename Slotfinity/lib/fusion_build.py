@@ -187,6 +187,51 @@ class Builder:
                   if all_bodies.item(i).entityToken not in before]
         return list(bodies) + copies
 
+    def move(self, bodies, transform):
+        moves = self.features.moveFeatures
+        try:
+            move_input = moves.createInput2(_collection(bodies))
+            move_input.defineAsFreeMove(transform)
+        except AttributeError:  # Fusion versions before createInput2
+            move_input = moves.createInput(_collection(bodies), transform)
+        moves.add(move_input)
+
+    def text(self, text, height, frame, depth):
+        """Raised text on a label face; returns the text bodies.
+
+        The text is sketched flat around the origin, extruded, and moved onto
+        the face described by `frame` (a geometry.TextFrame).
+        """
+        sketch = self.comp.sketches.add(self.comp.xYConstructionPlane)
+        texts = sketch.sketchTexts
+        text_input = texts.createInput2(text, cm(height))
+        corner = self._point(sketch, (-frame.width / 2, -frame.height / 2, 0))
+        diagonal = self._point(sketch, (frame.width / 2, frame.height / 2, 0))
+        text_input.setAsMultiLine(
+            corner, diagonal,
+            adsk.core.HorizontalAlignments.CenterHorizontalAlignment,
+            adsk.core.VerticalAlignments.MiddleVerticalAlignment, 0)
+        sketch_text = texts.add(text_input)
+        sketch.isVisible = False
+
+        extrudes = self.features.extrudeFeatures
+        ext_input = extrudes.createInput(sketch_text, NEW)
+        ext_input.setDistanceExtent(False, _value(depth + g.TEXT_EMBED))
+        bodies = self._bodies(extrudes.add(ext_input))
+
+        def point(xyz):
+            return adsk.core.Point3D.create(cm(xyz[0]), cm(xyz[1]), cm(xyz[2]))
+
+        def vector(xyz):
+            return adsk.core.Vector3D.create(*xyz)
+
+        transform = adsk.core.Matrix3D.create()
+        transform.setToAlignCoordinateSystems(
+            point((0, 0, g.TEXT_EMBED)), vector((1, 0, 0)), vector((0, 1, 0)), vector((0, 0, 1)),
+            point(frame.centre), vector(frame.baseline), vector(frame.up), vector(frame.normal))
+        self.move(bodies, transform)
+        return bodies
+
     def box(self, x0, y0, z0, x1, y1, z1):
         sketch = self.sketch_xy(z0, [g.rounded_rect(x0, y0, x1, y1, 0)])
         return self.extrude(sketch, z1 - z0)
@@ -325,6 +370,11 @@ def build_divider(comp, p):
         envelope = b.extrude(envelope_sketch, 4 * g.FLAT_LABEL_DEPTH, symmetric=True)[0]
         label = b.combine(label, [envelope], INTERSECT)
         divider = b.combine(divider, [label], JOIN)
+
+        height = g.label_text_height(p)
+        if height > 0:
+            letters = b.text(p.label_text.strip(), height, g.label_text_frame(p), p.emboss)
+            divider = b.combine(divider, letters, JOIN)
 
     divider.name = g.describe(p)
     return divider
