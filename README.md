@@ -23,8 +23,7 @@ De knop **Slotfinity tray** staat daarna in de Design-werkruimte onder
 |---|---|
 | Onderdeel | *Open tray (goot)*, *Gesloten bak* (met voor- en achterwand) of *Divider*. |
 | Maatvoering | *Rastereenheden*: breedte en lengte in eenheden van 42 mm (stappen van ½), hoogte in eenheden van 7 mm. *Millimeters*: exacte buitenmaat, bijvoorbeeld om een lade precies te vullen. |
-| Aantal goten naast elkaar | Verdeelt de breedte in meerdere smalle goten (bijv. 2 eenheden met 3 goten). |
-| Eén goot per rastereenheid | Legt de wanden tussen de goten precies op de lijnen van het 42 mm-raster. Elke goot is dan even breed als een 1U-tray. Samen met *Stapelrand* krijgt elke tussenwand bovenop het stapelprofiel aan twee kanten. Zo kun je losse bakjes van elke rastermaat (bijv. 1×1) op de onderlaag zetten: hun voetjes vallen tussen de ribben. Zijwaarts staan ze vast, in de lengte kun je ze schuiven. |
+| Aantal goten naast elkaar | Verdeelt de breedte in meerdere goten. Is het aantal goten gelijk aan de breedte in eenheden (bijv. 3 goten in een tray van 3 breed), dan komen de tussenwanden precies op het 42 mm-raster en is elke goot even breed als een 1U-tray. Met *Stapelrand* krijgt elke tussenwand dan bovenop het stapelprofiel aan twee kanten, zodat losse bakjes van elke rastermaat (bijv. 1×1) erop staan: zijwaarts vast, in de lengte schuifbaar. Bij een ander aantal (bijv. 3 goten in 2 eenheden) worden de goten gelijk verdeeld en zit de stapelrand alleen op de buitenwanden. |
 | Gootradius | Radius tussen wand en bodem (standaard 14 mm). Wordt automatisch kleiner als de goot te smal of te laag is. |
 | Onderkant | *Gridfinity-voetjes* (past op een Gridfinity-baseplate) of *Vlak*. |
 | Dividersleuven | Sleuven in de wanden om de 21 mm (½ eenheid). |

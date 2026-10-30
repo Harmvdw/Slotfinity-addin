@@ -48,6 +48,7 @@ class Builder:
         plane_input = self.comp.constructionPlanes.createInput()
         plane_input.setByOffset(base, _value(distance))
         plane = self.comp.constructionPlanes.add(plane_input)
+        plane.isLightBulbOn = False
         self._planes[(key, distance)] = plane
         return plane
 
@@ -99,30 +100,24 @@ class Builder:
                 first = self._end_near(curve, self._point(sketch, to_model(start)))
             current = self._end_near(curve, target)
 
+    def _sketch(self, plane, outlines, to_model):
+        sketch = self.comp.sketches.add(plane)
+        sketch.isComputeDeferred = True
+        for outline in outlines:
+            self.draw_outline(sketch, outline, to_model)
+        sketch.isComputeDeferred = False
+        sketch.isVisible = False  # helper geometry; its profiles stay usable
+        return sketch
+
     def sketch_xz(self, y, outlines):
         """Sketch (x, z) outlines on the plane through y."""
-        sketch = self.comp.sketches.add(self.plane_y(y))
-        sketch.isComputeDeferred = True
-        for outline in outlines:
-            self.draw_outline(sketch, outline, lambda p: (p[0], y, p[1]))
-        sketch.isComputeDeferred = False
-        return sketch
+        return self._sketch(self.plane_y(y), outlines, lambda p: (p[0], y, p[1]))
 
     def sketch_xy(self, z, outlines):
-        sketch = self.comp.sketches.add(self.plane_z(z))
-        sketch.isComputeDeferred = True
-        for outline in outlines:
-            self.draw_outline(sketch, outline, lambda p: (p[0], p[1], z))
-        sketch.isComputeDeferred = False
-        return sketch
+        return self._sketch(self.plane_z(z), outlines, lambda p: (p[0], p[1], z))
 
     def sketch_yz(self, x, outlines):
-        sketch = self.comp.sketches.add(self.plane_x(x))
-        sketch.isComputeDeferred = True
-        for outline in outlines:
-            self.draw_outline(sketch, outline, lambda p: (x, p[0], p[1]))
-        sketch.isComputeDeferred = False
-        return sketch
+        return self._sketch(self.plane_x(x), outlines, lambda p: (x, p[0], p[1]))
 
     @staticmethod
     def profiles(sketch):

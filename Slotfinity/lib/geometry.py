@@ -107,7 +107,6 @@ class Params:
     snap_legs: bool = True
     clearance: float = DIVIDER_CLEARANCE
     stackable: bool = False
-    grid_channels: bool = False   # one channel per grid unit, walls on the grid lines
 
 
 def has_lip(p):
@@ -146,7 +145,7 @@ def lip_openings(p, inset):
         y0, y1 = inset, p.length - inset
     else:
         y0, y1 = -1.0, p.length + 1.0
-    columns = grid_columns(p) if p.grid_channels else [(0.0, p.width)]
+    columns = grid_columns(p) if on_grid(p) else [(0.0, p.width)]
     return [(x0 + inset, y0, x1 - inset, y1) for x0, x1 in columns]
 
 
@@ -193,9 +192,19 @@ def grid_columns(p):
     return columns
 
 
+def on_grid(p):
+    """True when there is one channel per grid column.
+
+    The walls between the channels then sit on the grid lines, every channel
+    matches a 1U tray, and with a stacking lip the walls become ridges that
+    loose bins can stand on.
+    """
+    return p.channels == len(grid_columns(p))
+
+
 def channel_list(p):
     """[(centre x, width), ...] of every channel in the tray."""
-    if p.grid_channels:
+    if on_grid(p):
         return [((x0 + x1) / 2, x1 - x0 - 2 * p.wall) for x0, x1 in grid_columns(p)]
     cw, centres = channel_layout(p)
     return [(cx, cw) for cx in centres]
@@ -378,9 +387,7 @@ def describe(p):
     h = ("%g" % h_units) if abs(h_units - round(h_units)) < 1e-6 else "%gmm" % p.height
     name = {PART_TRAY: "tray", PART_BIN: "bak", PART_DIVIDER: "divider"}.get(p.part, p.part)
     s = "WaveGrid %s %sx%sx%s" % (name, u(p.width), u(p.length), h)
-    if p.grid_channels:
-        s += " (goot per eenheid)"
-    elif p.channels > 1:
+    if p.channels > 1:
         s += " (%d goten)" % p.channels
     if has_lip(p):
         s += " stapelbaar"

@@ -198,7 +198,7 @@ def test_lip_only_on_sides_of_open_tray():
 
 
 def test_grid_columns_follow_the_feet():
-    p = tray(width=g.units_to_mm(2.5), grid_channels=True)
+    p = tray(width=g.units_to_mm(2.5), channels=3)
     columns = g.grid_columns(p)
     assert [c for col in columns for c in col] == pytest.approx([0, 41.5, 42, 83.5, 84, 104.5])
     # Every foot lines up with a column.
@@ -209,7 +209,7 @@ def test_grid_columns_follow_the_feet():
 
 
 def test_grid_channels_match_a_1u_tray():
-    p = tray(width=g.units_to_mm(3), grid_channels=True)
+    p = tray(width=g.units_to_mm(3), channels=3)
     widths = [w for _, w in g.channel_list(p)]
     assert widths == pytest.approx([36.7] * 3)
     # Walls between channels: 2 x wall + gap, i.e. the base of a lip ridge.
@@ -218,7 +218,7 @@ def test_grid_channels_match_a_1u_tray():
 
 
 def test_grid_lip_has_a_ridge_per_grid_line():
-    p = tray(width=g.units_to_mm(3), stackable=True, grid_channels=True)
+    p = tray(width=g.units_to_mm(3), stackable=True, channels=3)
     top = g.lip_openings(p, g.LIP_TOP_INSET)
     assert len(top) == 3
     ridge = top[1][0] - top[0][2]
@@ -230,3 +230,13 @@ def test_grid_lip_has_a_ridge_per_grid_line():
 def test_divider_ignores_stackable():
     assert not g.has_lip(tray(part=g.PART_DIVIDER, stackable=True))
     assert g.describe(tray(stackable=True)).endswith("stapelbaar")
+
+
+def test_grid_alignment_is_automatic():
+    assert g.on_grid(tray())
+    assert g.on_grid(tray(width=g.units_to_mm(2), channels=2))
+    assert not g.on_grid(tray(width=g.units_to_mm(2), channels=3))
+    assert not g.on_grid(tray(width=g.units_to_mm(2), channels=1))
+    # Off the grid the lip stays on the outer walls only.
+    assert len(g.lip_openings(tray(width=g.units_to_mm(2), channels=3, stackable=True), 1)) == 1
+    assert len(g.lip_openings(tray(width=g.units_to_mm(2), channels=2, stackable=True), 1)) == 2
