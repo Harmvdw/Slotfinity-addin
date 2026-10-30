@@ -1,6 +1,5 @@
 """The 'Slotfinity tray' command: dialog, input handling and execution."""
 
-import math
 import os
 import traceback
 
@@ -94,7 +93,6 @@ def _create_inputs(inputs):
     divider.children.addValueInput("text_height", "Teksthoogte", "mm", _mm("5 mm"))
     divider.children.addBoolValueInput("engrave", "Tekst erin graveren (anders erop)", True, "", True)
     divider.children.addValueInput("emboss", "Tekstdiepte / -hoogte", "mm", _mm("0.6 mm"))
-    divider.children.addValueInput("text_taper", "Tapshoek tekst", "deg", _mm("15 deg"))
     divider.children.addBoolValueInput("snap_legs", "Klikpootjes", True, "", True)
     divider.children.addValueInput("clearance", "Speling per kant", "mm", _mm("0.2 mm"))
 
@@ -124,7 +122,7 @@ def _update_visibility(inputs):
     inputs.itemById("end_wall").isVisible = part == g.PART_BIN
     inputs.itemById("divider_group").isVisible = is_divider
     has_label = _dropdown_value(inputs.itemById("label"), LABELS) != g.LABEL_NONE
-    for cmd_id in ("label_text", "text_height", "engrave", "emboss", "text_taper"):
+    for cmd_id in ("label_text", "text_height", "engrave", "emboss"):
         inputs.itemById(cmd_id).isVisible = has_label
 
     info = inputs.itemById("info")
@@ -182,7 +180,6 @@ def _read_params(inputs):
     p.text_height = mm("text_height")
     p.emboss = mm("emboss")
     p.engrave = value("engrave")
-    p.text_taper = math.degrees(value("text_taper"))  # Fusion angles are radians
     p.clearance = mm("clearance")
     p.wall = mm("wall")
     p.slot_pitch = mm("slot_pitch")

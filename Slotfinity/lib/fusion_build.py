@@ -196,60 +196,20 @@ class Builder:
             move_input = moves.createInput(_collection(bodies), transform)
         moves.add(move_input)
 
-    @staticmethod
-    def _end_face_area(bodies, z):
-        """Total area of the text faces lying in the plane z (staging space)."""
-        area = 0.0
-        for body in bodies:
-            for i in range(body.faces.count):
-                face = body.faces.item(i)
-                if abs(face.pointOnFace.z - cm(z)) < 1e-5:
-                    area += face.area
-        return area
-
-    def _extrude_tapered(self, profile, length, taper, grow):
-        """Extrude with sloped sides: growing or shrinking along the extrusion.
-
-        Fusion's sign for the taper angle is checked on the result instead of
-        assumed. If the letters cannot take the taper, they stay straight.
-        """
-        extrudes = self.features.extrudeFeatures
-
-        def attempt(angle):
-            ext_input = extrudes.createInput(profile, NEW)
-            ext_input.setOneSideExtent(
-                adsk.fusion.DistanceExtentDefinition.create(_value(length)),
-                adsk.fusion.ExtentDirections.PositiveExtentDirection,
-                adsk.core.ValueInput.createByString("%g deg" % angle))
-            return extrudes.add(ext_input)
-
-        if taper > 0:
-            for angle in (taper, -taper):
-                try:
-                    feature = attempt(angle)
-                except Exception:
-                    continue
-                bodies = self._bodies(feature)
-                start = self._end_face_area(bodies, 0)
-                end = self._end_face_area(bodies, length)
-                if (end > start) == grow:
-                    return bodies
-                feature.deleteMe()
-        return self._bodies(attempt(0))
-
-    def text(self, text, height, frame, depth, engrave=False, taper=0.0):
+    def text(self, text, height, frame, depth, engrave=False):
         """Text bodies on a label face: raised, or as a cutting tool when engraving.
 
         The text is sketched flat around the origin, extruded, and moved onto
-        the face described by `frame` (a geometry.TextFrame). With a taper,
-        raised letters get narrower towards their top and engraved letters
-        get wider towards the label face.
+        the face described by `frame` (a geometry.TextFrame).
         """
         sketch = self.comp.sketches.add(self.comp.xYConstructionPlane)
         texts = sketch.sketchTexts
         text_input = texts.createInput2(text, cm(height))
-        corner = self._point(sketch, (-frame.width / 2, -frame.height / 2, 0))
-        diagonal = self._point(sketch, (frame.width / 2, frame.height / 2, 0))
+        # A box much wider than the label keeps the text on one centred line;
+        # a box of exactly the label width wraps text that runs a bit wide.
+        box_w, box_h = g.text_box(frame)
+        corner = self._point(sketch, (-box_w / 2, -box_h / 2, 0))
+        diagonal = self._point(sketch, (box_w / 2, box_h / 2, 0))
         text_input.setAsMultiLine(
             corner, diagonal,
             adsk.core.HorizontalAlignments.CenterHorizontalAlignment,
@@ -259,7 +219,10 @@ class Builder:
 
         # Staging space: z = 0 is the letter base (raised) or the bottom of
         # the engraving; the extrusion runs towards +z.
-        bodies = self._extrude_tapered(sketch_text, depth + g.TEXT_EMBED, taper, grow=engrave)
+        extrudes = self.features.extrudeFeatures
+        ext_input = extrudes.createInput(sketch_text, NEW)
+        ext_input.setDistanceExtent(False, _value(depth + g.TEXT_EMBED))
+        bodies = self._bodies(extrudes.add(ext_input))
 
         def point(xyz):
             return adsk.core.Point3D.create(cm(xyz[0]), cm(xyz[1]), cm(xyz[2]))
@@ -420,7 +383,7 @@ def build_divider(comp, p):
         if height > 0:
             engrave = g.text_engraved(p)
             letters = b.text(p.label_text.strip(), height, g.label_text_frame(p),
-                             p.emboss, engrave, p.text_taper)
+                             p.emboss, engrave)
             divider = b.combine(divider, letters, CUT if engrave else JOIN)
 
     divider.name = g.describe(p)

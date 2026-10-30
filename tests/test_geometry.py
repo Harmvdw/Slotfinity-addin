@@ -295,8 +295,8 @@ def test_engraving_depth_is_limited_on_the_flat_label():
     assert g.validate(p) == []  # the angled label is solid
 
 
-def test_text_taper_range():
-    p = tray(part=g.PART_DIVIDER, label=g.LABEL_FLAT, label_text="M6", text_taper=50)
-    assert g.validate(p)
-    p.text_taper = 0
-    assert g.validate(p) == []
+def test_text_box_is_wider_than_the_label():
+    p = tray(part=g.PART_DIVIDER, label=g.LABEL_FLAT, label_text="M5")
+    frame = g.label_text_frame(p)
+    w, h = g.text_box(frame)
+    assert w > 2 * g.label_half_width(p) and h > frame.height
