@@ -114,6 +114,8 @@ class Params:
     label_text: str = ""
     text_height: float = 5.0
     emboss: float = 0.6
+    engrave: bool = True          # text cut into the label, else raised on it
+    text_taper: float = 15.0      # degrees; sloped letter sides print cleaner
 
 
 def has_lip(p):
@@ -424,8 +426,7 @@ def label_text_frame(p):
 
 
 def text_engraved(p):
-    """Flat labels get engraved text, angled labels raised text."""
-    return p.label == LABEL_FLAT
+    return p.engrave
 
 
 def label_text_height(p):
@@ -485,9 +486,12 @@ def validate(p):
             errors.append("Kies een label om tekst op te zetten.")
         if not (0.2 <= p.emboss <= 3):
             errors.append("De reliëfhoogte moet tussen 0,2 en 3 mm liggen.")
-        elif text_engraved(p) and p.emboss > LABEL_THICKNESS - MIN_LABEL_FLOOR:
+        elif (text_engraved(p) and p.label == LABEL_FLAT
+              and p.emboss > LABEL_THICKNESS - MIN_LABEL_FLOOR):
             errors.append("Gegraveerde tekst mag hoogstens %.1f mm diep zijn."
                           % (LABEL_THICKNESS - MIN_LABEL_FLOOR))
+        if not (0 <= p.text_taper <= 45):
+            errors.append("De tapshoek moet tussen 0 en 45 graden liggen.")
         if p.text_height < 1:
             errors.append("De teksthoogte moet minstens 1 mm zijn.")
     if not (0 <= p.clearance < 1):
