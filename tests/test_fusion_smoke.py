@@ -40,13 +40,16 @@ def nearest_end(monkeypatch):
     g.Params(width=g.units_to_mm(1.5), length=g.units_to_mm(0.5)),
     g.Params(stackable=True),
     g.Params(part=g.PART_BIN, stackable=True, channels=2, width=g.units_to_mm(2)),
-    g.Params(width=g.units_to_mm(3.5), stackable=True, grid_channels=True),
+    g.Params(width=g.units_to_mm(3.5), stackable=True, channels=4),
 ])
 def test_build_tray(params):
     design, comp = make_design()
     fusion_build.build(design, params)
     feats = comp.features
     assert feats.extrudeFeatures.add.called
+    # Helper sketches and planes are hidden after use.
+    assert comp.sketches.add.return_value.isVisible is False
+    assert comp.constructionPlanes.add.return_value.isLightBulbOn is False
     assert feats.combineFeatures.add.called
     lip_lofts = 0
     if g.has_lip(params):
@@ -85,7 +88,7 @@ def fake_inputs(**overrides):
         "channels": FakeInput(1), "radius": FakeInput(1.4),
         "bottom": FakeInput(selected=command.BOTTOMS[0][0]),
         "slots": FakeInput(True), "snap_holes": FakeInput(True), "end_wall": FakeInput(0.24),
-        "stackable": FakeInput(False), "grid_channels": FakeInput(False),
+        "stackable": FakeInput(False),
         "divider_group": FakeInput(),
         "label": FakeInput(selected=command.LABELS[0][0]),
         "snap_legs": FakeInput(True), "clearance": FakeInput(0.02),
