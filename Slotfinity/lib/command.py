@@ -91,7 +91,7 @@ def _create_inputs(inputs):
     _add_dropdown(divider.children, "label", "Label", LABELS)
     divider.children.addStringValueInput("label_text", "Labeltekst", "")
     divider.children.addValueInput("text_height", "Teksthoogte", "mm", _mm("5 mm"))
-    divider.children.addValueInput("emboss", "Reliëfhoogte", "mm", _mm("0.6 mm"))
+    divider.children.addValueInput("emboss", "Tekstdiepte / -hoogte", "mm", _mm("0.6 mm"))
     divider.children.addBoolValueInput("snap_legs", "Klikpootjes", True, "", True)
     divider.children.addValueInput("clearance", "Speling per kant", "mm", _mm("0.2 mm"))
 

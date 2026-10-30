@@ -71,6 +71,10 @@ def test_build_divider(label, legs, text):
     has_text = bool(text) and label != g.LABEL_NONE
     assert comp.sketches.add.return_value.sketchTexts.add.called == has_text
     assert comp.features.moveFeatures.add.called == has_text
+    if has_text:
+        last_combine = comp.features.combineFeatures.createInput.return_value
+        expected = fusion_build.CUT if label == g.LABEL_FLAT else fusion_build.JOIN
+        assert last_combine.operation == expected
 
 
 class FakeInput:

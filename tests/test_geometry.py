@@ -280,3 +280,14 @@ def test_text_height_shrinks_to_fit():
     p.label = g.LABEL_NONE
     assert g.label_text_height(p) == 0
     assert g.validate(p)  # text without a label
+
+
+def test_flat_label_text_is_engraved_with_floor_left():
+    p = tray(part=g.PART_DIVIDER, label=g.LABEL_FLAT, label_text="M6")
+    assert g.text_engraved(p)
+    assert not g.text_engraved(tray(part=g.PART_DIVIDER, label=g.LABEL_ANGLED))
+    assert g.validate(p) == []
+    p.emboss = 1.8
+    assert g.validate(p)  # would cut (almost) through the 2 mm label
+    p.label = g.LABEL_ANGLED
+    assert g.validate(p) == []  # raised text may be taller

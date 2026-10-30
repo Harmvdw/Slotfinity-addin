@@ -196,8 +196,8 @@ class Builder:
             move_input = moves.createInput(_collection(bodies), transform)
         moves.add(move_input)
 
-    def text(self, text, height, frame, depth):
-        """Raised text on a label face; returns the text bodies.
+    def text(self, text, height, frame, depth, engrave=False):
+        """Text bodies on a label face: raised, or as a cutting tool when engraving.
 
         The text is sketched flat around the origin, extruded, and moved onto
         the face described by `frame` (a geometry.TextFrame).
@@ -227,7 +227,10 @@ class Builder:
 
         transform = adsk.core.Matrix3D.create()
         transform.setToAlignCoordinateSystems(
-            point((0, 0, g.TEXT_EMBED)), vector((1, 0, 0)), vector((0, 1, 0)), vector((0, 0, 1)),
+            # Raised text sinks TEXT_EMBED into the face; engraved text sticks
+            # out by TEXT_EMBED so the cut opens cleanly.
+            point((0, 0, depth if engrave else g.TEXT_EMBED)),
+            vector((1, 0, 0)), vector((0, 1, 0)), vector((0, 0, 1)),
             point(frame.centre), vector(frame.baseline), vector(frame.up), vector(frame.normal))
         self.move(bodies, transform)
         return bodies
@@ -373,8 +376,10 @@ def build_divider(comp, p):
 
         height = g.label_text_height(p)
         if height > 0:
-            letters = b.text(p.label_text.strip(), height, g.label_text_frame(p), p.emboss)
-            divider = b.combine(divider, letters, JOIN)
+            engrave = g.text_engraved(p)
+            letters = b.text(p.label_text.strip(), height, g.label_text_frame(p),
+                             p.emboss, engrave)
+            divider = b.combine(divider, letters, CUT if engrave else JOIN)
 
     divider.name = g.describe(p)
     return divider
