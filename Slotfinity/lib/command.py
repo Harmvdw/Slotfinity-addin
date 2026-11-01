@@ -138,10 +138,11 @@ def _update_visibility(inputs):
             text += "<br>Tekst verkleind tot %.1f mm zodat hij op het label past." % text_height
         if g.has_lip(p) and p.channels > 1:
             if g.on_grid(p):
-                text += "<br>Stapelribben op elke tussenwand: losse bakjes passen erop."
+                text += "<br>Stapelribben op het raster: losse bakjes passen erop."
             else:
-                text += ("<br>Let op: alleen bij %d goten komen de tussenwanden op het raster "
-                         "en kunnen losse bakjes erop staan." % len(g.grid_columns(p)))
+                text += ("<br>Let op: alleen bij een veelvoud van %d goten komt er een "
+                         "stapelrib op het raster en kunnen losse bakjes erop staan."
+                         % len(g.grid_columns(p)))
         errors = g.validate(p)
         if errors:
             text += "<br><b>%s</b>" % errors[0]
