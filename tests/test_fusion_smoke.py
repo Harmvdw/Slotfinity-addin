@@ -173,3 +173,51 @@ def test_build_in_an_empty_parametric_design():
         timeline, "markerPosition", timeline.markerPosition + 1) or mock.DEFAULT
     fusion_build.build(design, g.Params())
     assert timeline.timelineGroups.add.called
+
+
+class FakeBodies:
+    """bRepBodies backed by a list, so tests can see which bodies exist."""
+
+    def __init__(self):
+        self.items = []
+
+    @property
+    def count(self):
+        return len(self.items)
+
+    def item(self, i):
+        return self.items[i]
+
+    def new(self, name):
+        body = mock.Mock(entityToken=name)
+        body.name = name
+        self.items.append(body)
+        return body
+
+
+def test_every_lip_strip_is_joined_to_the_tray():
+    # A 3 wide open tray: cutting the lip leaves 4 strips (2 rims, 2 ridges).
+    design, comp = make_design()
+    bodies = FakeBodies()
+    comp.bRepBodies = bodies
+    p = g.Params(width=g.units_to_mm(3), channels=3, stackable=True, slots=False)
+    tray = bodies.new("tray")
+    joined = []
+
+    def combine(target, tools, operation):
+        if operation == fusion_build.CUT and target.name == "lipbox":
+            bodies.items.remove(target)
+            for i in range(4):
+                bodies.new("strip%d" % i)
+        if operation == fusion_build.JOIN and target is tray:
+            joined.extend(t.name for t in tools)
+        return target
+
+    builder = fusion_build.Builder(comp)
+    with mock.patch.object(fusion_build.Builder, "box", lambda self, *a: [bodies.new("lipbox")]), \
+            mock.patch.object(fusion_build.Builder, "combine", lambda self, t, tools, op: combine(t, tools, op)), \
+            mock.patch.object(fusion_build.Builder, "extrude", lambda self, *a, **k: []), \
+            mock.patch.object(fusion_build.Builder, "loft", lambda self, *a: []):
+        pieces = fusion_build._build_lip(builder, p)
+        builder.combine(tray, pieces, fusion_build.JOIN)
+    assert sorted(joined) == ["strip0", "strip1", "strip2", "strip3"]
