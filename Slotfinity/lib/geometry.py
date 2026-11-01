@@ -40,6 +40,7 @@ LIP_BOTTOM_INSET = 2.6   # Gridfinity value, limited to the wall thickness
 LIP_MID_INSET = 1.9
 LIP_MID_TOP = 2.9
 LIP_TOP_INSET = 0.4      # small flat on top instead of a knife edge
+LIP_OVERLAP = 0.3        # the lip reaches this far into the wall tops so it joins
 
 # --- Divider slots -----------------------------------------------------------
 SLOT_PITCH = 21.0      # distance between divider slots (half a grid unit)
@@ -155,6 +156,35 @@ def lip_openings(p, inset):
         y0, y1 = -1.0, p.length + 1.0
     columns = grid_columns(p) if on_grid(p) else [(0.0, p.width)]
     return [(x0 + inset, y0, x1 - inset, y1) for x0, x1 in columns]
+
+
+def lip_strip_outlines(p):
+    """Cross-sections (x, z) of the lip strips of an open tray.
+
+    An open tray's lip is a set of strips running the full length: a rim on
+    each long side and a ridge on every grid line between lip openings.
+    Each strip is a closed polygon, extruded along the tray as its own
+    solid, so nothing has to be cut apart. The bottom reaches LIP_OVERLAP
+    into the wall tops.
+    """
+    top = p.height
+    levels = lip_levels(p.wall)
+    zs = [-LIP_OVERLAP] + [z for z, _ in levels]
+    insets = [levels[0][1]] + [inset for _, inset in levels]
+    columns = grid_columns(p) if on_grid(p) else [(0.0, p.width)]
+
+    def right_face(x1):   # right side of an opening, x falls as the inset grows
+        return [(x1 - inset, top + z) for z, inset in zip(zs, insets)]
+
+    def left_face(x0):    # left side of an opening
+        return [(x0 + inset, top + z) for z, inset in zip(zs, insets)]
+
+    bottom, peak = top + zs[0], top + zs[-1]
+    strips = [polygon([(0.0, bottom), (0.0, peak)] + left_face(columns[0][0])[::-1])]
+    for (_, x1), (x0, _) in zip(columns, columns[1:]):
+        strips.append(polygon(right_face(x1) + left_face(x0)[::-1]))
+    strips.append(polygon(right_face(columns[-1][1]) + [(p.width, peak), (p.width, bottom)]))
+    return strips
 
 
 def units_to_mm(units):

@@ -275,13 +275,16 @@ def _build_feet(b, p):
 def _build_lip(b, p):
     """Stacking lip on the outer walls (and grid ridges); returns its bodies.
 
-    On an open tray the openings run the full length, so cutting them splits
-    the lip into separate strips (left, right and every ridge). All of them
-    are returned so each one gets joined to the tray.
+    An open tray gets separate strips extruded along its length, so nothing
+    is cut apart. A closed bin's lip is one ring (with any ridges joined to
+    its ends), cut out of a box.
     """
-    before = b._body_tokens()
+    if p.part != g.PART_BIN:
+        strips = b.sketch_xz(p.length / 2, g.lip_strip_outlines(p))
+        return b.extrude(strips, p.length, symmetric=True)
+
     top = p.height
-    overlap = 0.3  # reaches into the wall tops so the lip joins the tray
+    overlap = g.LIP_OVERLAP
     lip = b.box(0, 0, top - overlap, p.width, p.length, top + g.LIP_HEIGHT)[0]
     levels = g.lip_levels(p.wall)
 
@@ -301,8 +304,20 @@ def _build_lip(b, p):
             else:
                 tools += b.loft(sk_a.profiles.item(0), sk_b.profiles.item(0))
         tools += b.extrude(sketches[-1], 0.5)
-    b.combine(lip, tools, CUT)
-    return b.bodies_since(before)
+    return [b.combine(lip, tools, CUT)]
+
+
+def _merge_all(b):
+    """Join every body of the component into one, as a safety net.
+
+    A tray must export as a single solid; slicers such as OrcaSlicer load
+    every body of a STEP file as a separate part.
+    """
+    bodies = b.comp.bRepBodies
+    if bodies.count < 2:
+        return bodies.item(0)
+    rest = [bodies.item(i) for i in range(1, bodies.count)]
+    return b.combine(bodies.item(0), rest, JOIN)
 
 
 def build_tray(comp, p):
@@ -351,6 +366,7 @@ def build_tray(comp, p):
             tools += b.pattern(holes, 1, 0, len(slots), p.slot_pitch)
         body = b.combine(body, tools, CUT)
 
+    body = _merge_all(b)
     body.name = g.describe(p)
     return body
 
