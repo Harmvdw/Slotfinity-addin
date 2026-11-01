@@ -322,3 +322,29 @@ def test_text_box_is_wider_than_the_label():
     frame = g.label_text_frame(p)
     w, h = g.text_box(frame)
     assert w > 2 * g.label_half_width(p) and h > frame.height
+
+
+def _area(outline):
+    pts = outline_points(outline)[:-1]
+    return 0.5 * abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1])))
+
+
+@pytest.mark.parametrize("width, channels, strips", [(1, 1, 2), (2, 4, 3), (3, 3, 4), (2, 3, 2)])
+def test_lip_strips_match_the_lip_profile(width, channels, strips):
+    p = tray(width=g.units_to_mm(width), channels=channels, stackable=True)
+    outlines = g.lip_strip_outlines(p)
+    assert len(outlines) == strips
+    # Same cross-section as a solid block minus the openings of the lip.
+    levels = g.lip_levels(p.wall)
+    zs = [-g.LIP_OVERLAP] + [z for z, _ in levels]
+    insets = [levels[0][1]] + [i for _, i in levels]
+    columns = g.grid_columns(p) if g.on_grid(p) else [(0, p.width)]
+    openings = 0.0
+    for x0, x1 in columns:
+        for (za, ia), (zb, ib) in zip(zip(zs, insets), zip(zs[1:], insets[1:])):
+            openings += (zb - za) * ((x1 - x0 - 2 * ia) + (x1 - x0 - 2 * ib)) / 2
+    block = p.width * (g.LIP_HEIGHT + g.LIP_OVERLAP)
+    assert sum(_area(o) for o in outlines) == pytest.approx(block - openings)
+    # Every strip reaches into the wall tops, so it joins the tray.
+    for o in outlines:
+        assert min(z for _, z in outline_points(o)) == pytest.approx(p.height - g.LIP_OVERLAP)

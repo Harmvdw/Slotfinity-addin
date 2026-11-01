@@ -53,7 +53,7 @@ def test_build_tray(params):
     assert comp.constructionPlanes.add.return_value.isLightBulbOn is False
     assert feats.combineFeatures.add.called
     lip_lofts = 0
-    if g.has_lip(params):
+    if g.has_lip(params) and params.part == g.PART_BIN:  # open trays extrude strips
         lip_lofts = (len(g.lip_levels(params.wall)) - 2) * len(g.lip_openings(params, 0))
     if g.has_feet(params) or lip_lofts:
         assert feats.loftFeatures.add.call_count == 2 * len(g.foot_groups(params)) + lip_lofts
@@ -195,29 +195,36 @@ class FakeBodies:
         return body
 
 
-def test_every_lip_strip_is_joined_to_the_tray():
-    # A 3 wide open tray: cutting the lip leaves 4 strips (2 rims, 2 ridges).
-    design, comp = make_design()
+def test_open_tray_lip_is_extruded_as_strips():
+    _, comp = make_design()
+    b = fusion_build.Builder(comp)
+    p = g.Params(width=g.units_to_mm(2), channels=4, stackable=True)
+    with mock.patch.object(fusion_build.Builder, "sketch_xz") as sketch_xz, \
+            mock.patch.object(fusion_build.Builder, "extrude", return_value=["s0", "s1", "s2"]) as extrude:
+        assert fusion_build._build_lip(b, p) == ["s0", "s1", "s2"]
+    # One sketch with a rim per side and a ridge on the middle grid line.
+    assert len(sketch_xz.call_args[0][1]) == 3
+    assert extrude.call_args == mock.call(sketch_xz.return_value, p.length, symmetric=True)
+    assert not comp.features.combineFeatures.add.called  # nothing is cut apart
+
+
+def test_all_bodies_are_merged_into_one():
+    _, comp = make_design()
     bodies = FakeBodies()
     comp.bRepBodies = bodies
-    p = g.Params(width=g.units_to_mm(3), channels=3, stackable=True, slots=False)
-    tray = bodies.new("tray")
-    joined = []
+    for name in ("tray", "strip", "ridge"):
+        bodies.new(name)
+    calls = []
+    with mock.patch.object(fusion_build.Builder, "combine",
+                           lambda self, t, tools, op: calls.append((t.name, [x.name for x in tools], op)) or t):
+        fusion_build._merge_all(fusion_build.Builder(comp))
+    assert calls == [("tray", ["strip", "ridge"], fusion_build.JOIN)]
 
-    def combine(target, tools, operation):
-        if operation == fusion_build.CUT and target.name == "lipbox":
-            bodies.items.remove(target)
-            for i in range(4):
-                bodies.new("strip%d" % i)
-        if operation == fusion_build.JOIN and target is tray:
-            joined.extend(t.name for t in tools)
-        return target
 
-    builder = fusion_build.Builder(comp)
-    with mock.patch.object(fusion_build.Builder, "box", lambda self, *a: [bodies.new("lipbox")]), \
-            mock.patch.object(fusion_build.Builder, "combine", lambda self, t, tools, op: combine(t, tools, op)), \
-            mock.patch.object(fusion_build.Builder, "extrude", lambda self, *a, **k: []), \
-            mock.patch.object(fusion_build.Builder, "loft", lambda self, *a: []):
-        pieces = fusion_build._build_lip(builder, p)
-        builder.combine(tray, pieces, fusion_build.JOIN)
-    assert sorted(joined) == ["strip0", "strip1", "strip2", "strip3"]
+def test_single_body_is_left_alone():
+    _, comp = make_design()
+    bodies = FakeBodies()
+    comp.bRepBodies = bodies
+    bodies.new("tray")
+    assert fusion_build._merge_all(fusion_build.Builder(comp)).name == "tray"
+    assert not comp.features.combineFeatures.add.called
