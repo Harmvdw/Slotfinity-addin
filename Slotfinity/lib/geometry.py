@@ -201,19 +201,25 @@ def grid_columns(p):
 
 
 def on_grid(p):
-    """True when there is one channel per grid column.
+    """True when every grid column holds the same number of channels.
 
-    The walls between the channels then sit on the grid lines, every channel
-    matches a 1U tray, and with a stacking lip the walls become ridges that
-    loose bins can stand on.
+    The walls on the grid lines then get the full thickness of two outer
+    walls, and with a stacking lip they become ridges that loose bins can
+    stand on. With one channel per column every channel matches a 1U tray.
     """
-    return p.channels == len(grid_columns(p))
+    return p.channels % len(grid_columns(p)) == 0
 
 
 def channel_list(p):
     """[(centre x, width), ...] of every channel in the tray."""
     if on_grid(p):
-        return [((x0 + x1) / 2, x1 - x0 - 2 * p.wall) for x0, x1 in grid_columns(p)]
+        per_column = p.channels // len(grid_columns(p))
+        t_in = inner_wall(p.wall)
+        channels = []
+        for x0, x1 in grid_columns(p):
+            cw = (x1 - x0 - 2 * p.wall - (per_column - 1) * t_in) / per_column
+            channels += [(x0 + p.wall + cw / 2 + i * (cw + t_in), cw) for i in range(per_column)]
+        return channels
     cw, centres = channel_layout(p)
     return [(cx, cw) for cx in centres]
 

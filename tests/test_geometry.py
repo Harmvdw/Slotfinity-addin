@@ -235,11 +235,33 @@ def test_divider_ignores_stackable():
 def test_grid_alignment_is_automatic():
     assert g.on_grid(tray())
     assert g.on_grid(tray(width=g.units_to_mm(2), channels=2))
+    assert g.on_grid(tray(width=g.units_to_mm(2), channels=4))
     assert not g.on_grid(tray(width=g.units_to_mm(2), channels=3))
     assert not g.on_grid(tray(width=g.units_to_mm(2), channels=1))
     # Off the grid the lip stays on the outer walls only.
     assert len(g.lip_openings(tray(width=g.units_to_mm(2), channels=3, stackable=True), 1)) == 1
     assert len(g.lip_openings(tray(width=g.units_to_mm(2), channels=2, stackable=True), 1)) == 2
+    assert len(g.lip_openings(tray(width=g.units_to_mm(2), channels=4, stackable=True), 1)) == 2
+
+
+def test_several_channels_per_grid_column():
+    # 2 wide, 4 channels: two per column, a ridge wall on the grid line.
+    p = tray(width=g.units_to_mm(2), channels=4, stackable=True)
+    chans = g.channel_list(p)
+    assert len(chans) == 4
+    edges = [(cx - w / 2, cx + w / 2) for cx, w in chans]
+    assert edges[0][0] == pytest.approx(p.wall)
+    assert edges[-1][1] == pytest.approx(p.width - p.wall)
+    # Inside a column: a normal inner wall.
+    assert edges[1][0] - edges[0][1] == pytest.approx(g.inner_wall(p.wall))
+    # On the grid line: as thick as the base of the lip ridge.
+    grid_wall = (edges[1][1], edges[2][0])
+    assert grid_wall[1] - grid_wall[0] == pytest.approx(2 * p.wall + g.GRID_GAP)
+    assert sum(grid_wall) / 2 == pytest.approx(g.GRID - g.GRID_GAP / 2)
+    openings = g.lip_openings(p, g.lip_levels(p.wall)[0][1])
+    assert openings[0][2] == pytest.approx(grid_wall[0])
+    assert openings[1][0] == pytest.approx(grid_wall[1])
+    assert g.validate(p) == []
 
 
 def test_angled_label_is_solid_and_printable():
