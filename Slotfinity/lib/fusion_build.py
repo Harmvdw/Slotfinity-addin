@@ -162,6 +162,12 @@ class Builder:
         bodies = self.comp.bRepBodies
         return {bodies.item(i).entityToken for i in range(bodies.count)}
 
+    def bodies_since(self, tokens):
+        """Bodies of the component that were not there when tokens was taken."""
+        bodies = self.comp.bRepBodies
+        return [bodies.item(i) for i in range(bodies.count)
+                if bodies.item(i).entityToken not in tokens]
+
     def pattern(self, bodies, count_x, step_x, count_y, step_y):
         """Rectangular pattern of bodies; returns the originals plus copies."""
         if count_x * count_y <= 1:
@@ -182,10 +188,7 @@ class Builder:
                 _collection(bodies), self.comp.yConstructionAxis,
                 adsk.core.ValueInput.createByReal(count_y), _value(step_y), spacing)
         patterns.add(pat_input)
-        all_bodies = self.comp.bRepBodies
-        copies = [all_bodies.item(i) for i in range(all_bodies.count)
-                  if all_bodies.item(i).entityToken not in before]
-        return list(bodies) + copies
+        return list(bodies) + self.bodies_since(before)
 
     def move(self, bodies, transform):
         moves = self.features.moveFeatures
@@ -270,7 +273,13 @@ def _build_feet(b, p):
 
 
 def _build_lip(b, p):
-    """Stacking lip on the outer walls (and grid ridges), as one body."""
+    """Stacking lip on the outer walls (and grid ridges); returns its bodies.
+
+    On an open tray the openings run the full length, so cutting them splits
+    the lip into separate strips (left, right and every ridge). All of them
+    are returned so each one gets joined to the tray.
+    """
+    before = b._body_tokens()
     top = p.height
     overlap = 0.3  # reaches into the wall tops so the lip joins the tray
     lip = b.box(0, 0, top - overlap, p.width, p.length, top + g.LIP_HEIGHT)[0]
@@ -292,7 +301,8 @@ def _build_lip(b, p):
             else:
                 tools += b.loft(sk_a.profiles.item(0), sk_b.profiles.item(0))
         tools += b.extrude(sketches[-1], 0.5)
-    return b.combine(lip, tools, CUT)
+    b.combine(lip, tools, CUT)
+    return b.bodies_since(before)
 
 
 def build_tray(comp, p):
@@ -316,7 +326,7 @@ def build_tray(comp, p):
     body = b.combine(body, b.extrude(cavity, cut_length, symmetric=True), CUT)
 
     if g.has_lip(p):
-        body = b.combine(body, [_build_lip(b, p)], JOIN)
+        body = b.combine(body, _build_lip(b, p), JOIN)
 
     slots = g.slot_positions(p)
     if slots:
